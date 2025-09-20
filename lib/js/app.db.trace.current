@@ -1,0 +1,5 @@
+/usr/local/lib/perl/COMMON.pm:1458 COMMON::get_trace
+/usr/local/lib/perl/COMMON.pm:1487 COMMON::lock_file
+/usr/local/lib/perl/COMMON.pm:3134 COMMON::dbwrite
+/usr/local/lib/perl/COMMON.pm:3314 COMMON::copydb
+/var/www/www/sto/formcollector.cgi:29 COMMON::setup
