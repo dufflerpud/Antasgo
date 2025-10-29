@@ -1,0 +1,217 @@
+<h1 align=center>Andrego</h1>
+<h4 align=center>Chris Caldwell - 12/19/2023</h4>
+<p>This game was inspired by Fitbit's "Bingo" game, obsoleted by
+Google in 2022.  Andrego was made with no reference to the original
+Fitbit code, and neither game looks all that much like the game
+"Bingo" played in church basements everywhere.
+
+<p>Your introduction to Andrego will probably come in the form of an
+E-mail inviting you to an existing game.  That e-mail will include
+a hyperlink to the program.  Follow that link, enter your Andrego id
+(brightsands.com user id) and password and it should get you to the
+main screen.
+
+<p>To even get an invite, you already have an id and password,
+perhaps given to you by the administrator.  Eventually, new Andrego
+players will be able to go to the login screen and create their own
+id and password, but that is not tested as of this writing.
+
+<p>At the main screen, you'll see several buttons which take you to
+different menus.
+
+<p>The "Players" screen will give you statistical information for the
+specified player (number of any task performed, averages etc.  If you
+click on a particular task, you can create a new entry for that task.
+
+<p>Tasks will give you a list of all the tasks Andrego knows about
+with a push-button which will take you to that task's page.
+
+<p>Account administration allows you to set your password and other
+information.
+
+<p>Dump user log shows you all the tasks you've ever done.
+
+<p>The interesting button here is "Games" which shows you all the games that
+you are either participating in or managing.  Click "Play" on a particular
+game to (re)join it.
+
+<p>Tiles that are light blue must be flipped if you are to win the game.
+White tiles may or may not be useful (some of the white tiles will allow
+you to make other tiles easier or swap them).  Darker blue tiles are
+required but are now flipped over.  Grey tiles were not required but have
+now been flipped over.  Each tile is labeled with the task you have or must
+perform to flip it.  Unflipped tiles also have the number of units
+you must have to flip the tile.
+
+<p>If you click on a non-required (white) tile and you have enough of
+whatever task it requires to flip it, it may give you the opportunity to
+swap two other tiles, or deduct work from another tile.
+
+At the bottom of this grid are sections for each task involved in this
+game.  You can click on these sections to log entries for that task.  Below
+that, you can see the status of each players (and how many tiles they have
+flipped).
+
+<p>Important things to know about Andrego:
+    <ul>
+    <li>As of this writing, it does not interface to any health device's API
+        so it can't, for instance, know how many steps your Fitbit is
+	showing without you entering that information.
+    <li>Consequently, you need to enter this information by hand
+        including when these tasks happened.
+    <li>Consequently, there is nothing preventing you from cheating.
+    </ul>
+
+But there is a silver lining:  Since we're not limited to what APIs
+we know how to interface to (we don't know how to interface to any!),
+we can measure anything and everything that can be entered by hand.
+If you want to create a task counting the number of times you burp in
+the key of C, go ahead, but just remember, you're going to need to enter
+the data as you go.
+
+<center>
+<h2>Some definitions</h2>
+<table width=95% border=1 style='border-collapse:collapse'>
+<tr><th>Term</th><th>
+Meaning</th></tr><tr><th align=left valign=top>Task</th><td>
+    Thing that we're tracking, for instance, "Steps", "Push-ups",
+    "Sleep", "Water", "Stand-ups" etc.  A task has the following
+    attributes:
+    <table border=1 style='border-collapse:collapse'>
+    <tr><th align=left>Attribute</th><th>Example</th><th>Meaning</th></tr>
+    <tr><th align=left>Name</th><td>Steps</td><td>Name of task</td></tr>
+    <tr><th align=left valign=top>Units</th>
+        <td>Step</td>
+	<td>When we define a task, we define how it is measured.  For instance,
+	    "Sleep" might be measured in "hours", "Steps" is actually measured
+	    in "steps", "Stand-ups" is measured in "times".</td></tr>
+    <tr><th align=left valign=top>Minimum</th>
+        <td>1</td>
+	<td>The least number of whatever unit we can log in one entry.</td></tr>
+    <tr><th align=left valign=top>Maximum</th>
+        <td>35000</td>
+	<td>The most number of whatever unit we can log in one entry.</td></tr>
+    <tr><th align=left valign=top>Default</th>
+        <td>6000</td>
+	<td>If the player has never logged this task, the initial number of
+	    units per day we think they might do.  For instance, we might guess
+	    that they should be able to do 6000 steps in a day.</td></tr>
+    <tr><th align=left valign=top>Icon</th>
+        <td><img src="Andrego/tasks/Steps/icon.png"></td>
+	<td valign=top>A 100x100px black on white .png file that can be used to readily
+	    identify this task.</td></tr>
+    <tr><th align=left valign=top>Help</th>
+        <td></td>
+	<td>A (very) brief write-up on what this task, and how it is
+	    performed.</td></tr>
+    </table>
+</td></tr><tr><th align=left valign=top>User</th><td>
+    An Andrego user is a current user of the Brightsands.com website
+    tools with the "can_run_andrego" privilege.  Brightsands.com
+    maintains a database with the following per user:
+        <center><table border=1 style='border-collapse:collapse'>
+	<tr><th>Attribute</th>
+	    <th>Example</th>
+	    <th>Required</th></tr>
+	<tr><th align=left valign=top>id</th>
+	    <td>ccaldwell</td>
+	    <td>Yes</td></tr>
+	<tr><th align=left valign=top>Password</th>
+	    <td>(any string)</td>
+	    <td>Yes</td></tr>
+	<tr><th align=left valign=top>Full name</th>
+	    <td>Chris Caldwell</td>
+	    <td>Yes</td></tr>
+	<tr><th align=left valign=top>Privileges</th>
+	    <td>can_run_andrego</td>
+	    <td>Yes</td></tr>
+	<tr><th align=left valign=top>E-mail</th>
+	    <td>chris.interim@gmail.com</td>
+	    <td>No</td></tr>
+	<tr><th align=left valign=top>Phone</th>
+	    <td>207-555-1212</td>
+	    <td>No</td></tr>
+	<tr><th align=left valign=top>Fax</th>
+	    <td>207-555-1212</td>
+	    <td>No</td></tr>
+	<tr><th align=left valign=top>Address</th>
+	    <td>4 Nowhere Lane, Milford NH 94433</td>
+	    <td>No</td></tr>
+	</table></center>
+
+    <p>Each Andrego user has a log of all the tasks they have completed
+    going back to the first time they ran Andrego.  Based on that
+    log, Andrego calculates how many of each task the user performs
+    each day based on the last 4 days they logged anything for that task
+    (which is to say that if you don't log that task on a particular day,
+    it is simply not used for the average calculation).
+
+    For instance, consider the last 8 days of an Andrego user's step log:
+    	<center><table border=1 style='border-collapse:collapse'>
+	<tr><th>Day</th><th>Steps logged</th><th>Use for average to calculate goal</th></tr>
+	<tr><th>1</th>
+	    <td align=right>0</td>
+	    <td align=right>Ignored</td></tr>
+	<tr><th>2</th>
+	    <td align=right>8000</td>
+	    <td align=right>Ignored</td></tr>
+	<tr><th>3</th>
+	    <td align=right>5000</td>
+	    <td align=right>Yes</td></tr>
+	<tr><th>4</th>
+	    <td align=right>0</td>
+	    <td align=right>Ignored</td></tr>
+	<tr><th>5</th>
+	    <td align=right>6000</td>
+	    <td align=right>Yes</td></tr>
+	<tr><th>6</th>
+	    <td align=right>6200</td>
+	    <td align=right>Yes</td></tr>
+	<tr><th>7</th>
+	    <td align=right>0</td>
+	    <td align=right>Ignored</td></tr>
+	<tr><th>8</th>
+	    <td align=right>7000</td>
+	    <td align=right>Yes</td></tr>
+	<tr><th>Total used for calculation</th>
+	    <td align=right>24200</td>
+	    <td align=right>/4 = 6050</td></tr>
+	</table></center>
+    In this example, 24200 steps over the 4 days steps were logged equals
+    6050 steps/day.  Andrego will typically set the goal of a particular game
+    (that includes that task) to be that number per day.  If a game runs for
+    10 days, it will use 10 times that average etc or lay the game out so that
+    you'll have accomplished 242000 steps in order to win (in the above
+    example).
+
+    <p>As a design choice, no Andrego user is able to see any other user's
+    task log or goals, but of course they are free to exchange this information
+    through other media.  <b>This might change.</b>
+</td></tr><tr><th align=left valign=top>(game name) player</th><td valign=top>
+    A player is an Andrego user with an invitation to play a particular game.
+    For instance, if somebody creates a game called "Popeye"
+    (the only tasks are strength training and eating vegetables),
+    a "Popeye player" is someone who has been invited to that game.
+</td></tr><tr><th align=left valign=top>Game</th><td>
+    A game consists of:
+        <table border=1 style='border-collapse:collapse'>
+	<tr><th>Attribute</th><th>Meaning</th></tr>
+	<tr><th align=left>Starting and ending time</th><td valign=top>
+	    Entries logged between these times can be used in this game.
+	</td></tr><tr><th align=left valign=top>Pattern</th><td>
+	    One of several files each of which contains a
+	    configuration of tiles that are either required or
+	    not required to win the game, e.g. "Diamond", "Smile", etc.
+	    The only real limit on the pattern is that it must be
+	    rectangular and contain at least one required tile.
+	</td></tr><tr><th align=left align=valign=top>Invitees</th><td>
+	    A selection of one or more Andrego users
+	</td></tr><tr><th align=left align=valign=top>Task %</th><td>
+	    For every possible task, designate the fraction of the board
+	    that will have that task.  Percentage will be calcuated by
+	    multiplying this value 100 and dividing by the sum of all the
+	    task values.  If you have 3 tasks that are non-zero:  1, 2 and 1,
+	    they will be calculated as 25%, 50%, 25%.
+	</td></tr></table>
+</td></tr></table>
+</center>
