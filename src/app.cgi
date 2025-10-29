@@ -23,16 +23,17 @@ use MIME::Lite;
 use JSON;
 use Date::Parse;
 use lib "/usr/local/lib/perl";
-use cpi_cgi;
-use cpi_db;
-use cpi_file;
-use cpi_filename;
-use cpi_send_file;
-use cpi_setup;
-use cpi_template;
-use cpi_translate;
-use cpi_user;
-use cpi_vars;
+use cpi_send_file qw(sendmail);
+use cpi_user qw(admin_page all_prog_users logout_select name_to_group);
+use cpi_translate qw(xprint);
+use cpi_db qw(DBadd DBdel DBdelkey DBget DBnewkey DBpop DBput DBread DBwrite dbget dbread);
+use cpi_filename qw(filename_to_text text_to_filename);
+use cpi_file qw(cleanup echodo fatal files_in read_file write_file);
+use cpi_template qw(subst_list);
+use cpi_cgi qw(show_vars);
+use cpi_setup qw(setup);
+use cpi_english qw( nword );
+
 
 #	Some definitions:
 #	game		A set of parameters which can be used to generate
@@ -60,7 +61,7 @@ package main;
 
 my $FORMNAME = "form";
 
-&cpi_setup::setup(
+&setup(
 	stderr=>"Antasgo",
 	#allow_account_creation=>1,
 	require_valid_email=>1,
@@ -157,7 +158,7 @@ sub handle_includes
 		push( @epieces,
 		    "<$tag", $preincsrc, "incsrc='", $incsrc, "'",
 		    $postincsrc, ">\n",
-		    &cpi_file::read_file( $incsrc ),
+		    &read_file( $incsrc ),
 		    $tagbody, "\n",
 		    "</$tag>\n" );
 		}
@@ -179,7 +180,7 @@ sub footer
 
     my @s;
     push( @s, "<script type=text/javascript>\n",
-	&cpi_file::read_file( $JS_FOOTER ), <<EOF );
+	&read_file( $JS_FOOTER ), <<EOF );
 </script>
 <form name=footerform method=post>
 <input type=hidden name=func>
@@ -200,16 +201,16 @@ EOF
 	"Dump_user_log:XL(Dump user log)" )
         {
 	my( $butdest, $buttext ) = split(/:/,$button);
-	next if( $butdest eq "List_tasks" && ! &cpi_user::can("read","tasks") );
+	next if( $butdest eq "List_tasks" && ! &antasgo_can("read","tasks") );
 	push( @s, "><input type=button help=${button}_button onClick='footerfunc(\"$butdest\");'" .
 	    ( ($butdest eq $mode) ? " style='background-color:cyan'" : "" ) .
 	    " value=\"$buttext\"\n" );
 	}
-    push( @s, ">", &cpi_user::logout_select(), <<EOF );
+    push( @s, ">", &logout_select(), <<EOF );
 	</th></tr>
 	</table></th></tr></table></center></form>
 EOF
-    &cpi_translate::xprint( join("",@s) );
+    &xprint( join("",@s) );
     }
 
 #########################################################################
@@ -221,39 +222,13 @@ sub check_if_app_needs_header()
     }
 
 #########################################################################
-#	Avoid some typing.  Make prettier code.				#
-#########################################################################
-sub DBread	{ return &cpi_db::dbread($cpi_vars::DB);		}
-sub DBwrite	{ return &cpi_db::dbwrite($cpi_vars::DB);		}
-sub DBpop	{ return &cpi_db::dbpop($cpi_vars::DB);		}
-sub DBget	{ return &cpi_db::dbget($cpi_vars::DB,@_);	}
-sub DBput	{ return &cpi_db::dbput($cpi_vars::DB,@_);	}
-sub DBdelkey	{ return &cpi_db::dbdelkey($cpi_vars::DB,@_);	}
-sub DBadd	{ return &cpi_db::dbadd($cpi_vars::DB,@_);	}
-sub DBdel	{ return &cpi_db::dbdel($cpi_vars::DB,@_);	}
-sub DBnewkey	{ return &cpi_db::dbnewkey($cpi_vars::DB,@_);	}
-
-#########################################################################
-#	Convert a time string to number of seconds			#
-#########################################################################
-
-#########################################################################
 #	Mostly for debugging.  Pick a random file from a directory.	#
 #########################################################################
 sub random_file
     {
     my( $dirname ) = @_;
-    my @flist = &cpi_file::files_in( $dirname );
+    my @flist = &files_in( $dirname );
     return $dirname."/".$flist[ rand(scalar(@flist)) ];
-    }
-
-#########################################################################
-#	Determines the units of a task and pluralizes as required.	#
-#########################################################################
-sub unitized
-    {
-    my( $task, $num ) = @_;
-    return $num . " " . $game_tasks{$task}{units} . ( $num!=1 ? "s" : "" );
     }
 
 #########################################################################
@@ -264,12 +239,12 @@ sub read_game_tasks
     my $task_url = $cpi_vars::URL;
     $task_url =~ s+\.cgi+/tasks+;
 
-    foreach my $task ( &cpi_file::files_in( $GAME_TASKS ) )
+    foreach my $task ( &files_in( $GAME_TASKS ) )
 	{
 	my $fn = join("/",$GAME_TASKS,$task,"lib.pl");
 	next if( ! -r $fn );
-	eval( &cpi_file::read_file($fn) );
-	my $task_name				= &cpi_filename::filename_to_text($task);
+	eval( &read_file($fn) );
+	my $task_name				= &filename_to_text($task);
 	$game_tasks{$task}{icon}		||= "tasks/$task/icon.png";
 	$game_tasks{$task}{accomplished}	= 0;
 	next if( $game_tasks{$task}{range} !~ /(\d+)-(\d+)-(\d+)\s+(.*)$/ );
@@ -302,7 +277,7 @@ sub form_to_static_game
     return &decode_json( $static_game_json ) if( $static_game_json );
 
     my $pattern = &DBget("game",$gameind,"pattern");
-    my $contents = &cpi_file::read_file( $PATTERN_FILES."/".$pattern );
+    my $contents = &read_file( $PATTERN_FILES."/".$pattern );
     my $left;
     my $right;
     my $top;
@@ -442,7 +417,7 @@ sub user_specific_game
 #########################################################################
 #	Rudimentary permission logic.					#
 #########################################################################
-sub can
+sub antasgo_can
     {
     my( $op, $thing, $ind ) = @_;
 
@@ -494,10 +469,10 @@ sub invitee
 #########################################################################
 sub delete_task
     {
-    &cpi_file::fatal("XL(No task specified.)") if( ! $cpi_vars::FORM{task_name} );
-    my $task = &cpi_filename::text_to_filename($cpi_vars::FORM{task_name} );
+    &fatal("XL(No task specified.)") if( ! $cpi_vars::FORM{task_name} );
+    my $task = &text_to_filename($cpi_vars::FORM{task_name} );
     my $fqdirname = "$GAME_TASKS/$task";
-    &cpi_file::fatal("XL(Task does not exist.)") if( ! -d $fqdirname );
+    &fatal("XL(Task does not exist.)") if( ! -d $fqdirname );
     system("rm -rf $fqdirname");
     delete $game_tasks{$task};
     &list_tasks();
@@ -517,27 +492,27 @@ sub update_task
 		&& $cpi_vars::FORM{$v} !~ /^\d+$/ )
 	    { push( @problems, "$v XL(must be an integer)" ); }
 	}
-    &cpi_file::fatal( @problems ) if( @problems );
+    &fatal( @problems ) if( @problems );
 
-    my $task = &cpi_filename::text_to_filename($cpi_vars::FORM{task_name});
-    $cpi_vars::FORM{task_name} = &cpi_filename::filename_to_text( $task );
+    my $task = &text_to_filename($cpi_vars::FORM{task_name});
+    $cpi_vars::FORM{task_name} = &filename_to_text( $task );
     my $dname = "$GAME_TASKS/$task";
-    &cpi_file::echodo("mkdir -p '$dname'") if( ! -d $dname );
-    &cpi_file::write_file( "$dname/lib.pl",
+    &echodo("mkdir -p '$dname'") if( ! -d $dname );
+    &write_file( "$dname/lib.pl",
 	sprintf("\$game_tasks{\$task}{\"range\"}=\"%d-%d-%d %s\";\n",
 	    $cpi_vars::FORM{min},
 	    $cpi_vars::FORM{max},
 	    $cpi_vars::FORM{default},
 	    $cpi_vars::FORM{units} ) );
-    &cpi_file::write_file( "$dname/index.html", $cpi_vars::FORM{explanation} );
+    &write_file( "$dname/index.html", $cpi_vars::FORM{explanation} );
     if( $cpi_vars::FORM{icon} )
 	{
 	my $rawfile = "$dname/icon.raw";
-	&cpi_file::write_file( $rawfile, $cpi_vars::FORM{icon} );
-	my $file_output = &cpi_file::read_file("file $rawfile |");
+	&write_file( $rawfile, $cpi_vars::FORM{icon} );
+	my $file_output = &read_file("file $rawfile |");
 	my $cmd = "convert - -crop 1x1+1+1 txt:- <$rawfile|grep -om1 '#\\w\\+'";
 	print STDERR "cmd=[$cmd]\n";
-	my $bgcolor = &cpi_file::read_file( "$cmd |" );
+	my $bgcolor = &read_file( "$cmd |" );
 	chomp( $bgcolor );
 	print STDERR "bgcolor='$bgcolor'.\n";
 	$cmd = join(";",
@@ -559,7 +534,7 @@ sub show_task
     my ( @s )= $form_top;
     my $task = $cpi_vars::FORM{arg};
     my $dname = "$GAME_TASKS/$task";
-    my $explanation = &cpi_file::read_file( "$dname/index.html", "" );
+    my $explanation = &read_file( "$dname/index.html", "" );
     push( @s, <<EOF,
 <center id=id_full_screen><table border=0 cellpadding=2 cellspacing=0>
 <tr help='input_task_name'><th align=left width=50%>XL(Task name):</th><td width=50%>
@@ -600,13 +575,13 @@ EOF
 </table></center></form>
 EOF
     );
-    &cpi_translate::xprint(
-        &cpi_template::subst_list(
+    &xprint(
+        &subst_list(
 	    join("",@s),
 	    '%%JSCRIPT%%',''
 	));
     &footer("List_tasks");
-    &cpi_file::cleanup( 0 );
+    &cleanup( 0 );
     }
 
 #########################################################################
@@ -616,7 +591,7 @@ sub list_games
     {
     my( @s ) = $form_top;
     my @games = &DBget( "games" );
-    my $jscript = &cpi_file::read_file( $JS_ALL );
+    my $jscript = &read_file( $JS_ALL );
 
     push( @s, <<EOF );
 <script>
@@ -638,18 +613,18 @@ EOF
 
     foreach my $gameind ( @games )
         {
-	next if( ! &cpi_user::can( "read", "game", $gameind ) );
+	next if( ! &antasgo_can( "read", "game", $gameind ) );
 	my @invitees = split(/,/,&DBget("game",$gameind,"invitees"));
 	my $rs = " rowspan=".scalar(@invitees);
 	my @tsklist =
-	    map {"<nobr>".&DBget("game",$gameind,"$_")." ".&cpi_filename::filename_to_text($_)."</nobr>"}
+	    map {"<nobr>".&DBget("game",$gameind,"$_")." ".&filename_to_text($_)."</nobr>"}
 		sort
 	            grep( &DBget("game",$gameind,"$_"), %game_tasks );
 	push( @s, "<tr><th$rs>",
-	    ( &cpi_user::can("write","game",$gameind)
+	    ( &antasgo_can("write","game",$gameind)
 	        ? "<input type=button help='button_edit_game' value='XL(Edit)' onClick='game_func(\"Show_game\",\"$gameind\");'><br>"
 		: "" ),
-	    ( &cpi_user::can("read","game",$gameind)
+	    ( &antasgo_can("read","game",$gameind)
 	        ? "<input type=button help='button_play_game' value='XL(Play)' onClick='game_func(\"Show_instance\",\"$gameind\");'>"
 		: "" ),
 	    "</th><td$rs valign=top>",
@@ -677,8 +652,8 @@ EOF
 <tr><th colspan=9><input type=button help='button_add_game' onClick='game_func(\"Show_game\",\"\");' value="XL(Add game)"></th></tr>
 </table></center></form>
 EOF
-    &cpi_translate::xprint(
-	&cpi_template::subst_list(
+    &xprint(
+	&subst_list(
 	    join("",@s),
 	    "%%JSCRIPT%%",$jscript
 	));
@@ -691,7 +666,7 @@ EOF
 sub list_tasks
     {
     my( @s ) = $form_top;
-    my $jscript = &cpi_file::read_file( $JS_ALL );
+    my $jscript = &read_file( $JS_ALL );
 
     push( @s, <<EOF );
 <script>
@@ -730,8 +705,8 @@ EOF
 </tr><tr><th colspan=6><input type=button help='button_add_task' onClick='game_func(\"Show_task\",\"\");' value="XL(Add task)"></th></tr>
 </table></center></form>
 EOF
-    &cpi_translate::xprint(
-	&cpi_template::subst_list(
+    &xprint(
+	&subst_list(
 	    join("",@s),
 	    "%%JSCRIPT%%",$jscript
 	));
@@ -761,11 +736,11 @@ sub generate_email
     {
     my( $dest ) = @_;
 
-    &cpi_db::dbread( $cpi_vars::ACCOUNTDB );
+    &dbread( $cpi_vars::ACCOUNTDB );
 
     my @dests =
 	( ( !$dest || $dest eq "all" )
-	? &cpi_user::all_prog_users()
+	? &all_prog_users()
 	: ( $dest ) );
     #print "dests=[",join(":",@dests),"].\n";
 
@@ -787,7 +762,7 @@ sub generate_email
     foreach $dest ( @dests )
 	{
         my $dest_email =
-	    &cpi_db::dbget($cpi_vars::ACCOUNTDB, "users", $dest, "email");
+	    &dbget($cpi_vars::ACCOUNTDB, "users", $dest, "email");
 	if( ! $dest_email )
 	    { print "${dest}:  No e-mail on record.  Skipping.\n"; }
 	else
@@ -822,6 +797,7 @@ sub generate_email
 		{ print "${dest}:  No current games or activity.  Skipping.\n"; }
 	    else
 		{
+		${COMMON::PROG} if(0);	# Get rid of only used once warnings
 		print "${dest}:  Sending report to $dest_email.\n";
 		my $mime_msg = MIME::Lite->new
 		    (
@@ -851,7 +827,7 @@ sub generate_email
     &DBwrite();
     &DBput( "last_dump", $cpi_vars::NOW );
     &DBpop();
-    &cpi_file::cleanup(0);
+    &cleanup(0);
     }
 
 #########################################################################
@@ -966,7 +942,7 @@ sub update_user_task
 	my $modified = $cpi_vars::NOW;
 
 	my $logfile = join("/",$LOG,$cpi_vars::USER);
-	open(LOGF,">>$logfile")||&cpi_file::fatal("Cannot append to ${logfile}:  $!");
+	open(LOGF,">>$logfile")||&fatal("Cannot append to ${logfile}:  $!");
 	print LOGF join("\t",&time_to_str($modified),$task,$to_add),"\n";
 	close( LOGF );
 
@@ -1049,8 +1025,8 @@ sub show_user
     $cpi_vars::FORM{userind} = $userind;
     my $can_edit = ( $cpi_vars::FORM{userind} eq $cpi_vars::USER );
 
-    my $check_group = &cpi_user::name_to_group( "can_run_" . $cpi_vars::PROG );
-    my @ulist = &cpi_user::all_prog_users();
+    my $check_group = &name_to_group( "can_run_" . $cpi_vars::PROG );
+    my @ulist = &all_prog_users();
     $_ = ( scalar(@ulist) > 10 ? 10 : scalar(@ulist) ) + 1;
 
     push( @s, <<EOF );
@@ -1063,7 +1039,7 @@ EOF
     foreach my $u ( @ulist )
 	{
 	push( @s, "<option value='$u'".($u eq $userind ? " selected":"").">",
-	    &cpi_db::dbget($cpi_vars::ACCOUNTDB,"users",$u,"fullname"),
+	    &dbget($cpi_vars::ACCOUNTDB,"users",$u,"fullname"),
 	    "</option>\n" );
 	}
     push( @s, <<EOF );
@@ -1094,17 +1070,17 @@ EOF
     push( @s, <<EOF );
 </tr></table></center></form>
 EOF
-    my $jscript = &cpi_file::read_file($JS_ALL). &cpi_file::read_file($JS_USER);
+    my $jscript = &read_file($JS_ALL). &read_file($JS_USER);
     my $json_game_tasks = &encode_json( \%game_tasks );
     $_ = join("",@s);
-    &cpi_translate::xprint(
-        &cpi_template::subst_list(
+    &xprint(
+        &subst_list(
 	    join("",@s),
 	    "%%JSCRIPT%%",$jscript,
 	    "%%TASK_LIST%%",$json_game_tasks
 	));
     &footer("Show_user");
-    &cpi_file::cleanup( 0 );
+    &cleanup( 0 );
     }
 
 #########################################################################
@@ -1126,7 +1102,7 @@ sub show_game
     $cpi_vars::FORM{stop}  = &seconds_since_epoch( $cpi_vars::FORM{stop}  );
     #print "CMC start is $cpi_vars::FORM{start}.<br>\n";
     my $task_list = join(",", map { "'$_'" } keys %game_tasks );
-    my $jscript = &cpi_file::read_file($JS_ALL). &cpi_file::read_file($JS_GAME);
+    my $jscript = &read_file($JS_ALL). &read_file($JS_GAME);
 
     my $pretty_start = &time_to_datetimelocal( $cpi_vars::FORM{start} );
     my $pretty_stop  = &time_to_datetimelocal( $cpi_vars::FORM{stop}  );
@@ -1145,9 +1121,9 @@ EOF
     push(@s,"<option selected hidden disabled>XL(Select pattern)</option>\n")
         if( ! $cpi_vars::FORM{pattern} );
     my %patlist;
-    foreach my $fl ( &cpi_file::files_in($PATTERN_FILES,"^\\w") )
+    foreach my $fl ( &files_in($PATTERN_FILES,"^\\w") )
 	{
-	my $pat = &cpi_file::read_file( "$PATTERN_FILES/$fl" );
+	my $pat = &read_file( "$PATTERN_FILES/$fl" );
 	$pat =~ s/[^O]//gms;
 	$patlist{$fl} = length( $pat );
 	}
@@ -1175,7 +1151,7 @@ EOF
     my %selflag =
 	map { ($_," selected") }
 	    split(/,/,$cpi_vars::FORM{invitees}||"");
-    my @ulist = &cpi_user::all_prog_users();
+    my @ulist = &all_prog_users();
     $_ = ( scalar(@ulist) > 10 ? 10 : scalar(@ulist) ) + 1;
     push( @s, "<tr><th align=left valign=top>XL(Players):</th>",
 	"<td><select name=invitees required size=$_ multiple>",
@@ -1183,7 +1159,7 @@ EOF
     foreach my $u ( @ulist )
 	{
 	push( @s, "<option value='$u'".($selflag{$u}||"").">",
-	    &cpi_db::dbget($cpi_vars::ACCOUNTDB,"users",$u,"fullname"),
+	    &dbget($cpi_vars::ACCOUNTDB,"users",$u,"fullname"),
 	    "</option>" );
 	}
     push( @s, <<EOF );
@@ -1196,15 +1172,15 @@ EOF
 </table></center></form>
 EOF
     my $json_game_tasks = &encode_json( \%game_tasks );
-    &cpi_translate::xprint(
-        &cpi_template::subst_list(
+    &xprint(
+        &subst_list(
 	    join("",@s),
 	    "%%JSCRIPT%%",$jscript,
 	    "%%GAME_TASKS%%",$json_game_tasks
 	));
     &footer("directory");
-    &cpi_translate::xprint("<script>\nupdate_task_pcts();\n</script>\n");
-    &cpi_file::cleanup( 0 );
+    &xprint("<script>\nupdate_task_pcts();\n</script>\n");
+    &cleanup( 0 );
     }
 
 #########################################################################
@@ -1213,7 +1189,7 @@ EOF
 sub delete_game
     {
     my $gameind = $cpi_vars::FORM{gameind};
-    &cpi_translate::xprint("Gameind not specified.") if( ! $gameind );
+    &xprint("Gameind not specified.") if( ! $gameind );
     &DBwrite();
     &DBdel( "games", $gameind );
     &DBpop();
@@ -1225,7 +1201,7 @@ sub delete_game
 #########################################################################
 sub player_name
     {
-    my( $name ) = &cpi_db::dbget($cpi_vars::ACCOUNTDB,"users",$_[0],"fullname");
+    my( $name ) = &dbget($cpi_vars::ACCOUNTDB,"users",$_[0],"fullname");
     $name =~ s/ .*//g;
     return $name;
     }
@@ -1240,9 +1216,9 @@ sub invitee_email
     foreach my $invitee ( split(/,/,&DBget("game",$gameind,"invitees")) )
 	{
 	my $dest_email =
-	    &cpi_db::dbget( $cpi_vars::ACCOUNTDB, "users", $invitee, "email" );
+	    &dbget( $cpi_vars::ACCOUNTDB, "users", $invitee, "email" );
 
-	&cpi_send_file::sendmail( $ANDREGO_MAIL, $dest_email, $subject,
+	&sendmail( $ANDREGO_MAIL, $dest_email, $subject,
 	    "Dear ".&player_name($invitee).",\n\n" . $message )
 	    if( $dest_email );
 	}
@@ -1272,10 +1248,10 @@ sub update_game
 
     if( @probs )
         {
-        &cpi_translate::xprint( join("","<ul>",@probs,"</ul>",
+        &xprint( join("","<ul>",@probs,"</ul>",
 	    "<p><input onClick='window.history.go(-1); return false;'
 		type=submit value='Go back and fix these settings.'>"));
-        &cpi_file::cleanup();
+        &cleanup();
         return;
         }
     #
@@ -1361,7 +1337,7 @@ sub log_dump_string
 	        if( $entry_counts_towards_goal{ &day_of($ep->{when}) } );
 	    push( @s, $sep, $whenstr,
 		"</td><td>",
-		&unitized( $task, $ep->{count} ) );
+		&nword( $task, $ep->{count} ) );
 	    $sep = "</td></tr>\n<tr><td>";
 	    }
 	$sep = "</td></tr>\n<tr>";
@@ -1376,8 +1352,8 @@ sub log_dump_string
 #########################################################################
 sub dump_log
     {
-    &cpi_translate::xprint(
-        &cpi_template::subst_list(
+    &xprint(
+        &subst_list(
 	    join("",
 		$form_top,
 		&log_dump_string( $cpi_vars::USER, undef, 0, 0 ),
@@ -1390,11 +1366,11 @@ sub dump_log
 #########################################################################
 sub show_help
     {
-    &cpi_translate::xprint(
-        &cpi_template::subst_list(
+    &xprint(
+        &subst_list(
 	    join("",
 		$form_top,
-		&cpi_file::read_file( $HELP ),
+		&read_file( $HELP ),
 		"</form>"),
 	    '%%JSCRIPT%%', '' ) );
     &footer("Help");
@@ -1546,7 +1522,7 @@ sub show_instance
 	    $game_p->{won} = 1;
 	    $winning_tasks = "<center><table width=80%><tr><th align=left>"
 		. join("</td></tr><tr><th align=left>",
-		map { &filename_to_item($_).":</th><td>".&unitized($_,$game_p->{tasks}{$_}{used}) }
+		map { &filename_to_item($_).":</th><td>".&nword($_,$game_p->{tasks}{$_}{used}) }
 		    sort grep($game_p->{tasks}{$_}{used}, %{$game_p->{tasks}}))
 	            . "</td></tr></table></center>";
 	    }
@@ -1592,10 +1568,10 @@ EOF
 	}
 
     my $jscript =
-	&cpi_template::subst_list(
-	    &cpi_file::read_file($JS_ALL)
-	  . &cpi_file::read_file($JS_USER)
-	  . &cpi_file::read_file($JS_INSTANCE),
+	&subst_list(
+	    &read_file($JS_ALL)
+	  . &read_file($JS_USER)
+	  . &read_file($JS_INSTANCE),
 	  	"%%GAME%%",&encode_json($game_p),
 		"%%STATI%%",&instance_status_to_table( $gameind, $game_p ),
 		"%%TASK_LIST%%",&encode_json( \%game_tasks ) );
@@ -1610,15 +1586,15 @@ EOF
 </form>
 EOF
 
-    &cpi_translate::xprint(
-        &cpi_template::subst_list(
+    &xprint(
+        &subst_list(
 	    join("",@s),
 	    "%%JSCRIPT%%",	$jscript,
 	    "%%FORMNAME%%",	$FORMNAME,
 	    "%%WEB%%",		$cpi_vars::PROG
 	));
     &footer("List_games");
-    &cpi_file::cleanup( 0 );
+    &cleanup( 0 );
     }
 
 ##########################################################################
@@ -1646,7 +1622,7 @@ sub user_logic
     # these as the same.
     $fnc = "List_games" if( &inlist($fnc,"","dologin","email") );
  
-    if( $fnc eq "admin" )		{ &cpi_user::admin_page();	}
+    if( $fnc eq "admin" )		{ &admin_page();	}
 
     elsif( $fnc eq "Show_game" )	{ &show_game();			}
     elsif( $fnc eq "Update_game" )	{ &update_game();		}
@@ -1666,7 +1642,7 @@ sub user_logic
     elsif( $fnc eq "Dump_user_log" )	{ &dump_log();			}
     elsif( $fnc eq "Help" )		{ &show_help();			}
     else
-        { &cpi_file::fatal("Unrecognized function \"$fnc\"."); }
+        { &fatal("Unrecognized function \"$fnc\"."); }
     }
 
 #########################################################################
@@ -1681,7 +1657,7 @@ if( ($ENV{SCRIPT_NAME}||"") eq "" )
     if( $fnc =~ /email=(.*)/ )		{ generate_email($1);	}
     else
 	{
-	&cpi_file::fatal("XL(Usage):  $cpi_vars::PROG.cgi (dump|dumpaccounts|dumptranslations|undump|undumpaccounts|undumptranslations) [ dumpname ]",0)
+	&fatal("XL(Usage):  $cpi_vars::PROG.cgi (dump|dumpaccounts|dumptranslations|undump|undumpaccounts|undumptranslations) [ dumpname ]",0)
 	}
     }
 
@@ -1706,7 +1682,7 @@ print STDERR "Using_agent=[$using_agent], Agent=[$agent]\n";
 #my($nam,$pass,$uid,$gid,$quota,$comment,$gcos,$dir,$shell)
 #    = getpwnam("$cpi_vars::USER");
 
-#&cpi_cgi::show_vars()
+#&show_vars()
 #    if( ! &inlist(($cpi_vars::FORM{func}||""),"download","view") );
 
 $form_top = <<EOF;
@@ -1736,4 +1712,4 @@ EOF
 
 &user_logic();
 
-&cpi_file::cleanup(0);
+&cleanup(0);
