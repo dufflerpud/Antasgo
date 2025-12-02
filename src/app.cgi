@@ -197,7 +197,6 @@ EOF
 	"List_games:XL(Games)",
 	"List_tasks:XL(Tasks)",
 	"Show_user:XL(Players)",
-	"admin:XL(Account administration)",
 	"Dump_user_log:XL(Dump user log)" )
         {
 	my( $butdest, $buttext ) = split(/:/,$button);
