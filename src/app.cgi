@@ -24,7 +24,7 @@ use JSON;
 use Date::Parse;
 use lib "/usr/local/lib/perl";
 use cpi_send_file qw(sendmail);
-use cpi_user qw(admin_page all_prog_users logout_select name_to_group);
+use cpi_user qw(all_prog_users logout_select name_to_group);
 use cpi_translate qw(xprint);
 use cpi_db qw(DBadd DBdel DBdelkey DBget DBnewkey DBpop DBput DBread DBwrite dbget dbread);
 use cpi_filename qw(filename_to_text text_to_filename);
@@ -1621,9 +1621,7 @@ sub user_logic
     # these as the same.
     $fnc = "List_games" if( &inlist($fnc,"","dologin","email") );
  
-    if( $fnc eq "admin" )		{ &admin_page();	}
-
-    elsif( $fnc eq "Show_game" )	{ &show_game();			}
+    f( $fnc eq "Show_game" )		{ &show_game();			}
     elsif( $fnc eq "Update_game" )	{ &update_game();		}
     elsif( $fnc eq "Delete_game" )	{ &delete_game();		}
     elsif( $fnc eq "List_games" )	{ &list_games();		}
