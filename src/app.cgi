@@ -1621,7 +1621,7 @@ sub user_logic
     # these as the same.
     $fnc = "List_games" if( &inlist($fnc,"","dologin","email") );
  
-    f( $fnc eq "Show_game" )		{ &show_game();			}
+    if( $fnc eq "Show_game" )		{ &show_game();			}
     elsif( $fnc eq "Update_game" )	{ &update_game();		}
     elsif( $fnc eq "Delete_game" )	{ &delete_game();		}
     elsif( $fnc eq "List_games" )	{ &list_games();		}
