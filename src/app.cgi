@@ -796,13 +796,13 @@ sub generate_email
 		{ print "${dest}:  No current games or activity.  Skipping.\n"; }
 	    else
 		{
-		${COMMON::PROG} if(0);	# Get rid of only used once warnings
+		${cpi_vars::PROG} if(0);	# Get rid of only used once warnings
 		print "${dest}:  Sending report to $dest_email.\n";
 		my $mime_msg = MIME::Lite->new
 		    (
 		    From	=> $ANDREGO_MAIL,
 		    To		=> $dest_email,
-		    Subject	=> "Your ${COMMON::PROG} games",
+		    Subject	=> "Your ${cpi_vars::PROG} games",
 		    Type	=> "Multipart/mixed"
 		    ) || die("Cannot setup mime:  $!");
 
