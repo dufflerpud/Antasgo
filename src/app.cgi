@@ -85,10 +85,10 @@ my $FORMNAME = "form";
 	Qpreset_language=>"en",
 	Qrequire_captcha=>1
 	);
-$cpi_vars::URL = "https://www.brightsands.com/$cpi_vars::OFFSET/$cpi_vars::PROG.cgi"
-    if( ! $cpi_vars::URL );
+$cpi_vars::URL = "https://www.brightsands.com/$cpi_vars::WEBOFFSET/$cpi_vars::PROG.cgi"
+    if( ! $cpi_vars::URL && $cpi_vars::WEBOFFSET );
 
-#my $ANDREGO_MAIL = "$cpi_vars::PROG\@brightsands.com";
+#my $ANDREGO_MAIL = "$cpi_vars::PROG\@$cpi_vars::DOMAIN";
 my $ANDREGO_MAIL = "$cpi_vars::PROG";
 
 #########################################################################
